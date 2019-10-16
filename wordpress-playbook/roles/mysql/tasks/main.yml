@@ -1,13 +1,62 @@
 ---
 # tasks file for mysql
-- name: Create mysql database
-  mysql_db: name={{ wp_mysql_db }} state=present
+
+- name: Install required software
+  apt: name={{ item }} state=present
   become: yes
+  with_items:
+    - mysql-server
+    - php7.2-mysql
+    - php7.2
+    - libapache2-mod-php7.2
+    - python-mysqldb
+
+- name: Install the MySQL-python module
+  apt: name=python-mysqldb state=present
+
+- name: Create mysql database
+  mysql_db: name={{wp_mysql_db}} state=present
+  become: yes
+
+
+#- name: create db user
+#  mysql_user: name={{wp_mysql_user}} password={{wp_mysql_password}} priv=wordpress.*:ALL host={{wp_mysql_ip}} state=present
+#  tags:
+#  - mysql
+#  - mysql-user
+
 
 - name: Create mysql user
   mysql_user: 
-    name={{ wp_mysql_user }} 
-    password={{ wp_mysql_password }} 
-    priv=*.*:ALL
+    name={{wp_mysql_user}} 
+    password={{wp_mysql_password}}
+    priv={{wp_mysql_priv}}
+    host={{wp_mysql_ip}} 
 
-  become: yes  
+
+  become: yes
+
+
+#- name: key
+#  apt_key:
+#    keyserver: keyserver.ubuntu.com
+#    id: 5072E1F5
+
+- name: repository
+  copy:
+    content: deb http://repo.mysql.com/apt/debian stretch mysql-5.7 mysql-tools
+    dest: /etc/apt/sources.list.d/mysql.list
+
+- name: install
+  apt:
+    name: '{{ item }}'
+    update_cache: true
+  with_items:
+    - mysql-client
+    - mysql-server
+
+- name: config
+  copy:
+    src: mysqld.cnf
+    dest: /etc/mysql/mysql.conf.d/mysqld.cnf
+  notify: 'mysqld : reload'
