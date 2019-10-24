@@ -1,62 +1,35 @@
 ---
 # tasks file for mysql
 
-- name: Install required software
-  apt: name={{ item }} state=present
+- name: Get docker repos
+  command: add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu (lsb_release -cs) stable" 
+  command: apt update
+
+- name: Install docker
+  apt: name={{ item }} state=latest
   become: yes
   with_items:
-    - mysql-server
-    - php7.2-mysql
-    - php7.2
-    - libapache2-mod-php7.2
-    - python-mysqldb
+    - docker.io
+    - python-docker
 
-- name: Install the MySQL-python module
-  apt: name=python-mysqldb state=present
+#- name: config
+#  copy:
+#    src: database
+#    dest: /home/n5615/database
 
-- name: Create mysql database
-  mysql_db: name={{wp_mysql_db}} state=present
-  become: yes
-
-
-#- name: create db user
-#  mysql_user: name={{wp_mysql_user}} password={{wp_mysql_password}} priv=wordpress.*:ALL host={{wp_mysql_ip}} state=present
-#  tags:
-#  - mysql
-#  - mysql-user
-
-
-- name: Create mysql user
-  mysql_user: 
-    name={{wp_mysql_user}} 
-    password={{wp_mysql_password}}
-    priv={{wp_mysql_priv}}
-    host={{wp_mysql_ip}} 
+- name: install database
+  docker_container:
+    name: database
+    image: mysql:5.7
+    ports: 
+     - "3306:3306"
+    state: started
+    restart: yes
+    env:
+        MYSQL_ROOT_PASSWORD: salaword
+        MYSQL_USER: admin_user
+        MYSQL_PASSWORD: P#q3dJ/4
+        MYSQL_DATABASE: database
 
 
-  become: yes
 
-
-#- name: key
-#  apt_key:
-#    keyserver: keyserver.ubuntu.com
-#    id: 5072E1F5
-
-- name: repository
-  copy:
-    content: deb http://repo.mysql.com/apt/debian stretch mysql-5.7 mysql-tools
-    dest: /etc/apt/sources.list.d/mysql.list
-
-- name: install
-  apt:
-    name: '{{ item }}'
-    update_cache: true
-  with_items:
-    - mysql-client
-    - mysql-server
-
-- name: config
-  copy:
-    src: mysqld.cnf
-    dest: /etc/mysql/mysql.conf.d/mysqld.cnf
-  notify: 'mysqld : reload'

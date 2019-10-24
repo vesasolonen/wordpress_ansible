@@ -1,39 +1,40 @@
 ---
 # tasks file for wordpress
-- name: Download WordPress
-  get_url: 
-    url=https://wordpress.org/latest.tar.gz 
-    dest=/tmp/wordpress.tar.gz
-    validate_certs=no
 
-- name: Extract WordPress
-  unarchive: src=/tmp/wordpress.tar.gz dest=/var/www/html/ copy=no
+- name: Get docker repos
+  command: add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu (lsb_release -cs) stable"
+  command: apt update
+
+- name: Install docker
+  apt: name={{ item }} state=latest
   become: yes
-
-- name: Update default Apache site
-  become: yes
-  lineinfile: 
-    dest=/etc/apache2/sites-enabled/000-default.conf 
-    regexp="(.)+DocumentRoot /var/www/html"
-    line="DocumentRoot /var/www/html/wordpress"
-  notify:
-    - restart apache
-
-- name: Copy sample config file
-  command: mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php creates=/var/www/html/wordpress/wp-config.php
-  become: yes
-
-- name: Update WordPress config file
-  lineinfile:
-    dest=/var/www/html/wordpress/wp-config.php
-    regexp="{{ item.regexp }}"
-    line="{{ item.line }}"
   with_items:
+    - docker.io
+    - python-docker
 
-   - {'regexp': "define\\( 'DB_NAME', '(.)+' \\);", 'line': "define( 'DB_NAME', '{{wp_mysql_db}}' );"}
-   - {'regexp': "define\\( 'DB_USER', '(.)+' \\);", 'line': "define( 'DB_USER', '{{wp_mysql_user}}' );"}
-   - {'regexp': "define\\( 'DB_PASSWORD', '(.)+' \\);", 'line': "define( 'DB_PASSWORD', '{{wp_mysql_password}}' );"}
-   - {'regexp': "define\\( 'DB_HOST', '(.)+' \\);", 'line': "define( 'DB_HOST', '{{wp_mysql_ip}}' );"}
+- name: start docker service
+  sudo: yes
+  service:
+    name: docker
+    state: started
 
-#   - {'regexp': "define\\( 'DB_HOST', 'localhost'\\);", 'line': "define( 'DB_HOST', '{{wp_mysql_ip}}' );"}
-  become: yes
+- name: install wordpress
+  docker_container:
+    name: wordpress
+    image: wordpress
+    ports:
+     - "80:80"
+    state: started
+    restart: yes
+    env:
+        WORDPRESS_DB_NAME: database
+        WORDPRESS_DB_USER: admin_user
+        WORDPRESS_DB_PASSWORD: P#q3dJ/4
+        WORDPRESS_DB_HOST: 10.132.15.247
+
+
+
+
+#- name: execute dockerfile
+#  command: "docker run --name wordpress -p 80:80 -d -e DB_NAME=wordpress -e DB_USER=admin_user -e DB_PASSWORD=P#q3dJ/4 -e DB_HOST=34.77.109.156 wordpress"
+
